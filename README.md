@@ -39,7 +39,7 @@ connects to the server
 ```
 client <client_id>
 ```
-generates the keys
+generates the keys  
 `client_id` - unique identifier to generate a keys
 ### Key generation
 1. to run the `client <client_id>` to generate private and public keys.
