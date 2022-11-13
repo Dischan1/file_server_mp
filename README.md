@@ -36,6 +36,8 @@ connects to the server
 `r/t`       - file transfer direction (receive - receiving a file from a server/transmit - transmitting a file to a server)  
 `from`      - source directory from a server on receive or source directory from a client on transmit  
 `to`        - destination directory for a client on receive or destination directory for a server on transmit  
+  
+`from` and `to` paths are relative by default  
 ```
 client <client_id>
 ```
@@ -45,5 +47,3 @@ generates the keys
 1. run the `client <client_id>` to generate private and public keys.  
 2. send .priv and .pub keys without renaming to the server.  
 3. connect to the server with your unique identifier.  
-  
-`from` and `to` paths are relative by default  
