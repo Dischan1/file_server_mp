@@ -42,8 +42,8 @@ client <client_id>
 generates the keys  
 `client_id` - unique identifier to generate a keys
 ## Key generation
-1. to run the `client <client_id>` to generate private and public keys.  
-2. to send the .priv and the .pub keys without renaming to the server.  
+1. run the `client <client_id>` to generate private and public keys.  
+2. send .priv and .pub keys without renaming to the server.  
 3. connect to the server with your unique identifier.  
   
 `from` and `to` paths are relative by default  
