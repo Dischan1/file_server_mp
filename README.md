@@ -29,7 +29,7 @@ starts the server
 ```
 client <client_id> <ip> <port> [r/t] <from> <to>
 ```
-connects to the server
+connects to the server  
 `client_id` - unique identifier registered on the server side  
 `ip`        - remote server ip for connection  
 `port`      - remote server port for connection  
@@ -42,8 +42,8 @@ client <client_id>
 generates the keys  
 `client_id` - unique identifier to generate a keys
 ### Key generation
-1. to run the `client <client_id>` to generate private and public keys.
-2. to send the .priv and the .pub keys without renaming to the server.
-3. connect to the server with your unique identifier.
-
-`from` and `to` paths are relative by default
+1. to run the `client <client_id>` to generate private and public keys.  
+2. to send the .priv and the .pub keys without renaming to the server.  
+3. connect to the server with your unique identifier.  
+  
+`from` and `to` paths are relative by default  
