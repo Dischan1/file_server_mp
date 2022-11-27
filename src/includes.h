@@ -15,18 +15,27 @@
 # include <WinSock2.h>
   
 # include <stdio.h>
-# include <time.h>
 #else
 # include <pthread.h>
 # include <unistd.h>
 # include <string.h>
 # include <stdint.h>
 # include <errno.h>
-  
+# include <dirent.h> 
+
 # include <sys/time.h>
 # include <sys/types.h>
 # include <sys/socket.h>
   
 # include <netinet/in.h>
 # include <netinet/tcp.h>
+#endif
+
+#include "defines.h"
+#include "crc32.h"
+
+#if defined(_WIN64)
+# include "windows/directory.h"
+#else
+# include "linux/directory.h"
 #endif

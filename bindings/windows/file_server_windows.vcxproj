@@ -36,7 +36,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\common_utils.h" />
+    <ClInclude Include="..\..\src\crc32.h" />
     <ClInclude Include="..\..\src\cryptography.h" />
+    <ClInclude Include="..\..\src\ctcp_client.h" />
+    <ClInclude Include="..\..\src\ctcp_server.h" />
     <ClInclude Include="..\..\src\defines.h" />
     <ClInclude Include="..\..\src\includes.h" />
     <ClInclude Include="..\..\src\rsa.h" />
@@ -227,6 +230,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>CLIENT_DEBUG;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

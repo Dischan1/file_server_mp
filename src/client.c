@@ -3,179 +3,264 @@
 
 #include "includes.h"
 
-#include "defines.h"
 #include "common_utils.h"
 #include "cryptography.h"
+#include "ctcp_client.h"
 
 _client_id g_client_id;
 
-bool transmit_file(_socket sk, const char* from, const char* to)
+bool transmit_file(_connection* con, const char* from, const char* to)
 {
     char* buffer;
     long size;
 
     if (load_file(&buffer, &size, from))
     {
-        log("[+] file loaded: \n");
-        log("    size: 0x%x bytes\n", size);
-        log("    from: %s\n", from);
-        log("    to: %s\n", to);
+        _packet request;
+        construct_packet(&request, to, _packet_file_upload, g_client_id, size);
 
-        _packet* request = construct_packet(to, _packet_file_upload, g_client_id, size);
-
-        if (transmit_packet(sk, request))
+        if (transmit_packet(con, &request))
         {
-            log("[+] packet sent successfully\n");
             load_file(&buffer, &size, from);
-
-            if (transmit_encrypt_data(sk, buffer, size))
-                log("[+] data sent successfully\n");
-            else
-                log("[-] data sent error: %x\n", _last_error_code);
+            transmit_encrypt_data(con, buffer, size);
         }
-        else
-            log("[-] packet sent error: %x\n", _last_error_code);
 
-        free(request);
         free(buffer);
     }
-    else
-        log("[-] load file error: %x\n", _last_error_code);
 
     return false;
 }
 
-bool receive_file(_socket sk, const char* from, const char* to)
+bool receive_file(_connection* con, const char* from, const char* to)
 {
-    _packet* response;
-    _packet* request = construct_packet(from, _packet_file_download, g_client_id, 0);
+    _packet request;
 
-    if (transmit_packet(sk, request))
-        log("[+] packet sent successfully\n");
-    else
-        log("[-] packet sent error: %x\n", _last_error_code);
+    construct_packet(&request, from, _packet_file_download, g_client_id, 0);
+    transmit_packet(con, &request);
 
-    if (transmit_packet(sk, request) && receive_packet(sk, &response))
+    char* data;
+    size_t size;
+
+    if (receive_decrypt_data(con, &data, &size))
     {
-        char* data;
+        save_file(data, size, to);
+        free(data);
+        return true;
+    }
 
-        if (receive_decrypt_data(sk, &data, response->size))
+    return false;
+}
+
+bool list_directory(_connection* con, const char* path)
+{
+    _packet request;
+
+    construct_packet(&request, path, _packet_list_directory, g_client_id, 0);
+    transmit_packet(con, &request);
+
+    char* data;
+    size_t size;
+
+    if (receive_decrypt_data(con, &data, &size))
+    {
+        printf("\n\n%s\n\n", data);
+        free(data);
+        return true;
+    }
+
+    return false;
+}
+
+bool ctcp_on_packet_received(_connection* con, _ctcp_packet* packet)
+{
+    con->ping_last = time(NULL);
+    ctcp_write_frame_queue(&con->input, packet);
+}
+
+void process_client_receive(_connection* con)
+{
+    while (true)
+    {
+        int fromlen = sizeof(con->sockaddr_in);
+
+        int result = recvfrom(con->socket, &con->packet,
+            sizeof(con->packet), 0, &con->sockaddr_in, &fromlen);
+
+        bool is_packet_size_valid =
+            result != SOCKET_DATA_EMPTY &&
+            result >= sizeof(_ctcp_header) &&
+            result <= sizeof(_ctcp_packet);
+
+        if (!is_packet_size_valid)  continue;
+        if (con->packet.header.ACK) continue;
+
+        if (!ctcp_is_checksum_valid(&con->packet))
         {
-            save_file(data, response->size, to);
-            free(data);
-            free(response);
-            free(request);
-            return true;
+            dp_error("invalid checksum\n");
+            continue;
         }
 
-        free(response);
+        dp_status(result > 0, "%4x: sv->cl->%x\n", con->guid, result);
+
+        ctcp_write_frame_queue(&con->input, &con->packet);
+        con->packet.header.ACK          = true;
+        con->packet.header.payload_size = 0u;
+
+        ctcp_subscribe_packet(&con->packet);
+        result = sendto(con->socket, &con->packet, sizeof(con->packet.header),
+            0, &con->sockaddr_in, sizeof(con->sockaddr_in));
     }
-
-    free(request);
-    return false;
 }
 
-_socket socket_create()
+void process_client_transmit(_connection* con)
 {
-    return socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-}
-
-void socket_setup(const char* ip, _sockaddr_in* sa, ushort port)
-{
-    sa->sin_family = AF_INET;
-    sa->sin_port = htons(port);
-    sa->sin_addr.s_addr = inet_addr(ip);
-}
-
-_connection socket_connect(_socket sk, _sockaddr_in* sa)
-{
-    int len = sizeof(*sa);
-    return connect(sk, sa, &len);
-}
-
-int receive(const char* ip, ushort port, const char* from, const char* to)
-{
-    _socket sk = socket_create();
-    if (sk == SOCKET_ERROR) return _last_error_code;
-
-    _sockaddr_in sa;
-    socket_setup(ip, &sa, port);
-
-    _connection cn = socket_connect(sk, &sa);
-    if (cn == CONNECTION_ERROR) return _last_error_code;
-
-    if (receive_file(sk, from, to))
+    while (true)
     {
-        log("[+] file received successfully\n");
-        return socket_close(sk);
-    }
+        if (!con->output.count) continue;
 
-    int code = _last_error_code;
-    return socket_close(sk), code;
+        _ctcp_packet* cache = ctcp_peak_frame_queue(&con->output);
+
+        int result = -1;
+
+        con->packet.header.ACK = false;
+        ctcp_subscribe_packet(cache);
+
+        while (!con->packet.header.ACK)
+        {
+            result = sendto(con->socket, cache, sizeof(*cache),
+                0, &con->sockaddr_in, sizeof(con->sockaddr_in));
+
+            sleep(10);
+        }
+
+        cache->header.ACK = con->packet.header.ACK;
+        ctcp_skip_frame_queue(&con->output);
+
+        dp_status(result > 0, "%4x: cl->sv->%x\n", con->guid, result);
+    }
 }
 
-int transmit(const char* ip, ushort port, const char* from, const char* to)
+int print_usage()
 {
-    _socket sk = socket_create();
-    if (sk == SOCKET_ERROR) return _last_error_code;
-
-    _sockaddr_in sa;
-    socket_setup(ip, &sa, port);
-
-    _connection cn = socket_connect(sk, &sa);
-    if (cn == CONNECTION_ERROR) return _last_error_code;
-
-    if (transmit_file(sk, from, to))
-    {
-        log("[+] file sent successfully\n");
-        return socket_close(sk);
-    }
-
-    int code = _last_error_code;
-    return socket_close(sk), code;
+    printf("usage:\n");
+    printf("      client <client_id> <ip> <port> [r/t] <from> <to>\n");
+    printf("      or\n");
+    printf("      client <client_id> <ip> <port> l <path>\n");
+    printf("      or\n");
+    printf("      client <client_id>\n");
+    return 0;
 }
 
-int main(int argc, char* argv[])
+int validate_arguments(int argc, char* argv[])
 {
-    srand(time(NULL));
+    if (argc == 1) return -1;
 
     if (argc == 2)
     {
         _client_id client_id = strtoull(argv[1], 0, 10);
         rsa_generate_keys(&g_rsa_data);
         rsa_save_client_keys(&g_rsa_data, client_id);
-        return 0;
+        return 1;
     }
 
-    if (argc != 7)
+    if (argc >= 2)
     {
-        log("usage:\n");
-        log("      client <client_id> <ip> <port> [r/t] <from> <to>\n");
-        log("      or\n");
-        log("      client <client_id>\n");
-        return 0;
+        g_client_id = strtoull(argv[1], 0, 10);
+        if (!initialize_client_rsa(g_client_id)) return -1;
     }
 
-    int code = network_startup();
-    if (code) return _last_error_code;
-
-    g_client_id   = strtoull(argv[1], 0, 10);
-    if (!initialize_client_rsa(g_client_id)) return 1;
-
-    const char* ip         = argv[2];
-    ushort port            = strtoull(argv[3], 0, 10);
-    const char* direction  = argv[4];
-    const char* from       = argv[5];
-    const char* to         = argv[6];
-
-    if (direction[0] == 'r')
-        code = receive(ip, port, from, to);
-    else if (direction[0] == 't')
-        code = transmit(ip, port, from, to);
+    if (argc >= 5)
+    {
+        switch (argv[4][0])
+        {
+            case 'r': case 't':
+            {
+                if (argc != 7)
+                    return -2;
+                break;
+            }
+            case 'l':
+            {
+                if (argc != 6)
+                    return -2;
+                break;
+            }
+            default:
+                return -2;
+        }
+    }
     else
-        log("[-] unknown operation\n");
+        return -3;
 
-    log("[?] exit code: %x\n", code);
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    /*
+
+    argv[0]   executable_name
+                    |
+    argv[1]      client_id
+                    |
+    argv[2]        ip
+                    |
+    argv[3]        port
+                    |
+    argv[4]        [r/t/ - - - - /l]
+                    |             |
+    argv[5]       from           path
+                    |
+    argv[6]         to
+
+    */
+
+    srand(time(NULL));
+
+    int code = 0;
+
+    if (code = validate_arguments(argc, argv))
+        return code < 0 ? print_usage() : code;
+
+    if (code = network_startup())
+        return _last_error_code;
+
+    _socket sk = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+    _sockaddr_in sa;
+    sa.sin_family      = AF_INET;
+    sa.sin_port        = htons(strtoull(argv[3], 0, 10));
+    sa.sin_addr.s_addr = inet_addr(argv[2]);
+
+    _connection* con = ctcp_allocate_connection();
+    con->socket      = sk;
+    con->sockaddr_in = sa;
+
+    thread_create(&process_client_receive, con);
+    thread_create(&process_client_transmit, con);
+
+    if (argv[4][0] == 't')
+    {
+        if (transmit_file(con, argv[5], argv[6]))
+            dp_success("file sent successfully\n");
+    }
+    else if (argv[4][0] == 'r')
+    {
+        if (receive_file(con, argv[5], argv[6]))
+            dp_success("file received successfully\n");
+    }
+    else if (argv[4][0] == 'l')
+    {
+        if (list_directory(con, argv[5]))
+            dp_success("string received successfully\n");
+    }
+    else
+        dp_error("unknown operation\n");
+
+    ctcp_dispose_connection(con);
+    socket_close(sk);
+
+    dp_status(code == 0, "exit code: %x\n", code);
     return network_shutdown();
 }
 #endif

@@ -35,15 +35,18 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\client.c" />
+    <ClCompile Include="..\..\src\server.c" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="..\..\src\common_utils.h" />
+    <ClInclude Include="..\..\src\crc32.h" />
     <ClInclude Include="..\..\src\cryptography.h" />
+    <ClInclude Include="..\..\src\ctcp_client.h" />
+    <ClInclude Include="..\..\src\ctcp_server.h" />
     <ClInclude Include="..\..\src\defines.h" />
     <ClInclude Include="..\..\src\includes.h" />
     <ClInclude Include="..\..\src\rsa.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\src\client.c" />
-    <ClCompile Include="..\..\src\server.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3e39e113-9218-4594-9b1a-f5eda7a27c69}</ProjectGuid>
