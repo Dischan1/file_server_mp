@@ -27,15 +27,18 @@ starts the server
 
 ### Client
 ```
-client <client_id> <ip> <port> [r/t] <from> <to>
+client <client_id> <ip> <port> [r/t/l] <from> <to>
+client <client_id> <ip> <port> l <path>
 ```
 connects to the server  
 `client_id` - unique identifier registered on the server side  
 `ip`        - remote server ip for connection  
 `port`      - remote server port for connection  
 `r/t`       - file transfer direction (receive - receiving a file from a server/transmit - transmitting a file to a server)  
+`l`         - listing a directory from remote server  
 `from`      - source directory from a server on receive or source directory from a client on transmit  
 `to`        - destination directory for a client on receive or destination directory for a server on transmit  
+`path`      - a directory from remote server  
   
 `from` and `to` paths are relative by default  
 ```
