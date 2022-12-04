@@ -105,18 +105,6 @@ int rsa_MEA(int p, int e, int n) {
 	return r2;
 }
 
-typedef struct
-{
-	int p;
-	int q;
-
-	int n;
-	int phi;
-
-	int e;
-	int d;
-} _rsa_data;
-
 void rsa_generate_keys(_rsa_data* rsa_data)
 {
 	rsa_data->p = rsa_genprime();
@@ -136,16 +124,28 @@ void rsa_generate_keys(_rsa_data* rsa_data)
 	}
 }
 
+void rsa_get_public(_rsa_data* rsa_data, _rsa_public* key)
+{
+	key->n = rsa_data->n;
+	key->e = rsa_data->e;
+}
+
+void rsa_get_private(_rsa_data* rsa_data, _rsa_private* key)
+{
+	key->n = rsa_data->n;
+	key->d = rsa_data->d;
+}
+
 bool rsa_save_public_key(_rsa_data* rsa_data, const char* path)
 {
 	int data[] = { rsa_data->n, rsa_data->e };
-	return save_file(data, sizeof(data), path);
+	return save_file((char*)data, sizeof(data), path);
 }
 
 bool rsa_save_private_key(_rsa_data* rsa_data, const char* path)
 {
 	int data[] = { rsa_data->n, rsa_data->d };
-	return save_file(data, sizeof(data), path);
+	return save_file((char*)data, sizeof(data), path);
 }
 
 bool rsa_save_keys(_rsa_data* rsa_data, const char* name)
@@ -172,7 +172,7 @@ bool rsa_save_client_keys(_rsa_data* rsa_data, int client_id)
 bool rsa_load_public_key(_rsa_data* rsa_data, const char* path)
 {
 	int data[] = { rsa_data->n, rsa_data->e };
-	bool status = load_file_static(data, sizeof(data), path);
+	bool status = load_file_static((char*)data, sizeof(data), path);
 	if (!status) return false;
 	rsa_data->n = data[0];
 	rsa_data->e = data[1];
@@ -182,7 +182,7 @@ bool rsa_load_public_key(_rsa_data* rsa_data, const char* path)
 bool rsa_load_private_key(_rsa_data* rsa_data, const char* path)
 {
 	int data[] = { rsa_data->n, rsa_data->d };
-	bool status = load_file_static(data, sizeof(data), path);
+	bool status = load_file_static((char*)data, sizeof(data), path);
 	if (!status) return false;
 	rsa_data->n = data[0];
 	rsa_data->d = data[1];
@@ -210,26 +210,27 @@ bool rsa_load_client_keys(_rsa_data* rsa_data, int client_id)
 	return rsa_load_keys(rsa_data, buffer);
 }
 
-int* rsa_encrypt(_rsa_data* rsa_data, char* buffer, int size)
+int* rsa_encrypt(_rsa_public* key, char* buffer, int size)
 {
 	int* enc = malloc(size * sizeof(int));
 
 	for (int i = 0; i < size; ++i)
-		enc[i] = rsa_MEA(buffer[i], rsa_data->e, rsa_data->n);
+		enc[i] = rsa_MEA(buffer[i], key->e, key->n);
 
 	return enc;
 }
 
-char* rsa_decrypt(_rsa_data* rsa_data, int* buffer, int size)
+char* rsa_decrypt(_rsa_private* key, int* buffer, int size)
 {
 	char* dec = malloc(size * sizeof(char));
 
 	for (int i = 0; i < size; ++i)
-		dec[i] = rsa_MEA(buffer[i], rsa_data->d, rsa_data->n);
+		dec[i] = rsa_MEA(buffer[i], key->d, key->n);
 
 	return dec;
 }
 
+/*
 int test()
 {
 	srand(time(NULL));
@@ -252,3 +253,4 @@ int test()
 
 	return 0;
 }
+*/

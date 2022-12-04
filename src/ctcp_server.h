@@ -26,11 +26,6 @@ _connection* ctcp_find_connection(_guid guid)
 	return NULL;
 }
 
-_connection* ctcp_allocate_connection()
-{
-	return ctcp_find_connection(0ul);
-}
-
 void ctcp_dispose_connection(_connection* con)
 {
 	for (uint32_t i = 0u; i < _countof(gconnections); ++i)
@@ -45,9 +40,18 @@ _connection* ctcp_dispose_expired_connections()
 {
 	for (uint32_t i = 0u; i < _countof(gconnections); ++i)
 	{
+		if (!gconnections[i].guid)
+			continue;
+
 		if (ctcp_is_connection_expired(&gconnections[i]))
 			ctcp_dispose_connection(&gconnections[i]);
 	}
 
 	return NULL;
+}
+
+_connection* ctcp_allocate_connection()
+{
+	ctcp_dispose_expired_connections();
+	return ctcp_find_connection(0ul);
 }

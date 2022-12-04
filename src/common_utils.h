@@ -5,7 +5,7 @@ bool ctcp_is_checksum_valid(_ctcp_packet* packet)
 	static_assert_(offsetof(_ctcp_header, checksum) == 0u, "checksum offset is not zero");
 	static_assert_(offsetof(_ctcp_header, guid) == 4u, "guid offset is not 4u");
 
-	char* begin = &packet->header.guid;
+	char* begin = (char*)&packet->header.guid;
 	char* end	= packet->payload + packet->header.payload_size;
 	size_t size = end - begin;
 
@@ -18,7 +18,7 @@ void ctcp_subscribe_packet(_ctcp_packet* packet)
 	static_assert_(offsetof(_ctcp_header, checksum) == 0u, "checksum offset is not zero");
 	static_assert_(offsetof(_ctcp_header, guid) == 4u, "guid offset is not 4u");
 
-	char* begin = &packet->header.guid;
+	char* begin = (char*)&packet->header.guid;
 	char* end	= packet->payload + packet->header.payload_size;
 	size_t size = end - begin;
 
@@ -33,7 +33,7 @@ _ctcp_packet* ctcp_peak_frame_queue(_frames_queue* frames)
 
 void ctcp_skip_frame_queue(_frames_queue* frames)
 {
-	if (frames->count == 0) return NULL;
+	if (frames->count == 0) return;
 	frames->rindex = ++frames->rindex % CTCP_CONNECTION_FRAMES_MAX;
 	frames->count -= 1u;
 }
@@ -44,7 +44,7 @@ _ctcp_packet* ctcp_read_frame_queue(_frames_queue* frames, _ctcp_packet* packet)
 
 	*packet = frames->queue[frames->rindex];
 
-	_ctcp_packet* p = &frames->queue[frames->windex];
+	_ctcp_packet* p = &frames->queue[frames->rindex];
 
 	frames->rindex = ++frames->rindex % CTCP_CONNECTION_FRAMES_MAX;
 	frames->count -= 1u;
@@ -71,34 +71,59 @@ _ctcp_packet* ctcp_transmit_packet(_connection* con, _ctcp_packet* packet);
 
 _ctcp_packet* ctcp_receive_packet(_connection* con, _ctcp_packet* packet)
 {
-	while (!ctcp_read_frame_queue(&con->input, packet)) sleep(1);
+	_ctcp_packet* p = NULL;
+
+	for (size_t i = 0u; i < CTCP_CONNECTION_TIMEOUT_SECONDS_MAX * 1000; ++i)
+	{
+		if (con->input.count)
+			break;
+		sleep(1);
+	}
+
+	sleep(10);
+
+	p = ctcp_read_frame_queue(&con->input, packet);
+	if (!con->is_active) thread_exit();
+
+	return p;
 }
 
 _ctcp_packet* ctcp_transmit_packet(_connection* con, _ctcp_packet* packet)
 {
-	packet->header.ACK   = false;
-	packet->header.guid  = con->guid;
+	packet->header.ACK  = false;
+	packet->header.guid = con->guid;
 	_ctcp_packet* p = ctcp_write_frame_queue(&con->output, packet);
-	while (!p->header.ACK) sleep(1);
+
+	for (size_t i = 0u; i < CTCP_CONNECTION_TIMEOUT_SECONDS_MAX * 1000; ++i)
+	{
+		if (p->header.ACK)
+			break;
+		sleep(1);
+	}
+
+	if (!con->is_active) thread_exit();
+
 	return p;
 }
 
-bool ctcp_transmit_data(_connection* con, char* data, size_t size)
+bool ctcp_transmit_data(_connection* con, char* msg, size_t size)
 {
 	_ctcp_packet packet;
 	memset(&packet, 0, sizeof(packet));
 
+	packet.header.payload_size		 = 0u;
 	packet.header.payload_size_total = size;
 
 	if (!ctcp_transmit_packet(con, &packet)) return false;
 
 	size_t offset	 = 0u;
 	size_t size_free = packet.header.payload_size_total;
+	size_t payload_size_max = con->encryption ? sizeof(packet.payload) / 4u : sizeof(packet.payload);
 
 	while (size_free > 0)
 	{
-		size_t payload_size = __min(size_free, sizeof(packet.payload));
-		memcpy(packet.payload, data + offset, payload_size);
+		size_t payload_size = __min(size_free, payload_size_max);
+		memcpy(packet.payload, msg + offset, payload_size);
 
 		packet.header.payload_size = payload_size;
 
@@ -117,7 +142,7 @@ bool ctcp_receive_data(_connection* con, char** data, size_t* size)
 
 	if (!ctcp_receive_packet(con, &packet)) return false;
 
-	packet.header.guid  = con->guid;
+	packet.header.guid = con->guid;
 
 	*data = malloc(packet.header.payload_size_total);
 	*size = packet.header.payload_size_total;
@@ -141,14 +166,15 @@ bool ctcp_receive_data(_connection* con, char** data, size_t* size)
 	return true;
 }
 
-void construct_packet(_packet* packet, const char* path, _packet_type type, int client_id, size_t size)
+bool ctcp_send_ack(_connection* con)
 {
-	memset(packet, 0, sizeof(packet));
-	memcpy(packet->path, path, (strlen(path) + 1ull) * sizeof(*path));
+	con->packet.header.ACK = true;
+	con->packet.header.payload_size = 0u;
 
-	packet->type = type;
-	packet->size = size;
-	packet->client_id = client_id;
+	ctcp_subscribe_packet(&con->packet);
+
+	return sendto(con->socket, &con->packet, sizeof(con->packet.header),
+		0, &con->sockaddr_in, sizeof(con->sockaddr_in)) >= 0u;
 }
 
 bool receive_data(_connection* con, char** data, size_t* size)
@@ -161,38 +187,87 @@ bool transmit_data(_connection* con, char* data, size_t size)
 	return ctcp_transmit_data(con, data, size);
 }
 
-bool receive_packet(_connection* con, _packet* packet)
+bool receive_data_sized(_connection* con, char* data, size_t target)
 {
-	size_t size;
-	_packet* temp;
+	size_t size_2;
+	char* data_2;
 
-	bool status = ctcp_receive_data(con, &temp, &size);
+	auto status = ctcp_receive_data(con, &data_2, &size_2);
 	if (!status) return false;
 
-	if (size != sizeof(_packet))
-	{
-		free(temp);
-		return false;
-	}
+	if (size_2 != target)
+		return free(data_2), false;
 
-	*packet = *temp;
-	return true;
+	memcpy(data, data_2, size_2);
+	return free(data_2), true;
 }
 
-bool transmit_packet(_connection* con, _packet* packet)
+typedef enum
 {
-	return ctcp_transmit_data(con, packet, sizeof(_packet));
+	_rpc_status_none,
+	_rpc_status_unknown,
+	_rpc_status_accepted,
+	_rpc_status_rejected,
+} _rpc_status;
+
+_rpc_status receive_rpc_status(_connection* con)
+{
+	_rpc_status status;
+
+	if (!receive_data_sized(con, (char*)&status, sizeof(status)))
+		return _rpc_status_unknown;
+
+	return status;
+}
+
+bool transmit_rpc_status(_connection* con, _rpc_status status)
+{
+	return ctcp_transmit_data(con, (char*)&status, sizeof(status));
+}
+
+bool receive_rpc(_connection* con, _rpc* rpc)
+{
+	return receive_data_sized(con, rpc, sizeof(*rpc));
+}
+
+_rpc_status transmit_rpc(_connection* con, _rpc_type type)
+{
+	_rpc rpc;
+	rpc.magic = 0x12345678u;
+	rpc.type  = type;
+	
+	if (!ctcp_transmit_data(con, (char*)&rpc, sizeof(rpc)))
+		return _rpc_status_unknown;
+
+	return receive_rpc_status(con);
+}
+
+char* receive_string(_connection* con, size_t length_max)
+{
+	char* path;
+	size_t size;
+
+	if (!receive_data(con, &path, &size))
+		return NULL;
+
+	if (size >= length_max || size == 0u)
+		return free(path), NULL;
+
+	if (path[size - 1u] != L'\0')
+		return free(path), NULL;
+
+	return path;
+}
+
+bool transmit_string(_connection* con, char* data)
+{
+	return transmit_data(con, data, strlen(data) + 1u);
 }
 
 bool load_file(char** buffer, long* size, const char* path)
 {
 	FILE* file = fopen(path, "rb");
-
-	if (!file || file == INVALID_HANDLE_VALUE)
-	{
-		dp_error("load file error");
-		return false;
-	}
+	if (!file || file == INVALID_HANDLE_VALUE) return false;
 
 	fseek(file, 0, SEEK_END);
 	*size = ftell(file);
@@ -210,12 +285,7 @@ bool load_file(char** buffer, long* size, const char* path)
 bool load_file_static(char* buffer, long size, const char* path)
 {
 	FILE* file = fopen(path, "rb");
-
-	if (!file || file == INVALID_HANDLE_VALUE)
-	{
-		dp_error("load file error");
-		return false;
-	}
+	if (!file || file == INVALID_HANDLE_VALUE) return false;
 
 	fseek(file, 0, SEEK_END);
 
@@ -234,12 +304,7 @@ bool load_file_static(char* buffer, long size, const char* path)
 bool save_file(char* buffer, long size, const char* path)
 {
 	FILE* file = fopen(path, "wb+");
-
-	if (!file || file == INVALID_HANDLE_VALUE)
-	{
-		dp_error("save file error");
-		return false;
-	}
+	if (!file || file == INVALID_HANDLE_VALUE) return false;
 
 	fwrite(buffer, size, 1, file);
 	return fclose(file), true;

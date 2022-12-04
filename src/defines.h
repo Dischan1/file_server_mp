@@ -1,5 +1,7 @@
 #pragma once
 
+#pragma warning(push)
+#pragma warning(disable: 4005)
 #define PACKET_CONTENT_SIZE_MAX (1 << 21)
 #define SESSIONS_COUNT_MAX      1024
 #define SESSION_TTL_MAX         60 // seconds
@@ -25,17 +27,19 @@
 #define _countof(A) (sizeof(A)/sizeof((A)[0]))
 
 #if defined(_WIN32)
-#define _last_error_code GetLastError()
-#define socket_close closesocket
-#define sleep Sleep
-#define sprintf_s_ sprintf_s
+#define _last_error_code	GetLastError()
+#define socket_close		closesocket
+#define sleep				Sleep
+#define thread_exit()		ExitThread(0)
+#define sprintf_s_			sprintf_s
 #define thread_create(arg0, arg1) \
-	{ HANDLE hthread = CreateThread(NULL, NULL, (unsigned long(*)(void*))(arg0), arg1, NULL, NULL); CloseHandle(hthread); }
+	{ HANDLE hthread = CreateThread(NULL, 0u, (unsigned long(*)(void*))(arg0), (LPVOID)(arg1), 0u, NULL); CloseHandle(hthread); }
 #else
-#define _last_error_code errno
-#define socket_close close
-#define sleep usleep
-#define sprintf_s_ snprintf
+#define _last_error_code	errno
+#define socket_close		close
+#define sleep				usleep
+#define thread_exit()		pthread_exit
+#define sprintf_s_			snprintf
 #define thread_create(arg0, arg1) \
 	{ pthread_t pThread; pthread_create(&pThread, NULL, (void*(*)(void*))(arg0), arg1); }
 #endif
@@ -44,9 +48,7 @@ typedef unsigned long long ulonglong;
 typedef unsigned short     ushort;
 
 typedef unsigned long long _socket;
-//typedef int                _connection;
 typedef void*              HANDLE;
-typedef int                _client_id;
 
 #define bool unsigned char
 
@@ -55,21 +57,24 @@ typedef int                _client_id;
 
 typedef enum
 {
-    _packet_file_none      = 0,
-    _packet_file_download  = 2,
-    _packet_file_upload    = 4,
-    _packet_list_directory = 8,
-} _packet_type;
+    _rpc_file_none		= 0,
+    _rpc_connect		= 1,
+    _rpc_disconnect		= 2,
+    _rpc_login			= 3,
+    _rpc_register		= 4,
+    _rpc_file_download	= 5,
+    _rpc_file_upload	= 6,
+    _rpc_list_directory	= 7,
+    _rpc_message		= 8,
+} _rpc_type;
 
 #pragma pack(push)
 #pragma pack(1)
 typedef struct
 {
-    size_t size;
-    _packet_type type;
-    int client_id;
-    char path[256u];
-} _packet;
+	size_t magic;
+	_rpc_type type;
+} _rpc;
 #pragma pack(pop)
 
 typedef struct {
@@ -103,7 +108,7 @@ typedef struct
 #if defined(_DEBUG)
 # define CTCP_CONNECTION_TIMEOUT_SECONDS_MAX	99999u
 #else
-# define CTCP_CONNECTION_TIMEOUT_SECONDS_MAX	4u
+# define CTCP_CONNECTION_TIMEOUT_SECONDS_MAX	60u
 #endif
 
 #if defined (_MSC_VER)
@@ -122,14 +127,39 @@ typedef uint64				_flags;
 typedef uint32				_checksum;
 typedef uint32				_size;
 
+typedef struct
+{
+	int p;
+	int q;
+
+	int n;
+	int phi;
+
+	int e;
+	int d;
+} _rsa_data;
+
+typedef struct
+{
+	int n;
+	int d;
+} _rsa_private;
+
+typedef struct
+{
+	int n;
+	int e;
+} _rsa_public;
+
 #pragma pack(push)
 #pragma pack(1)
 typedef struct
 {
 	_checksum checksum;
 	_guid	  guid;
-	uint32    payload_size;
-	uint32    payload_size_total;
+	_index32  index;
+	size_t    payload_size;
+	size_t    payload_size_total;
 	union
 	{
 		struct
@@ -159,12 +189,27 @@ typedef struct
 typedef struct
 {
 	_guid		 guid;
-	_socket		 socket;
+	bool		 is_active;
+	bool		 is_logged_in;
 	_time		 ping_last;
+
+	bool		 encryption;
+
+	struct
+	{
+		_rsa_public	 pub;
+		_rsa_private priv;
+	} key;
+
+	_socket		 socket;
 	_sockaddr_in sockaddr_in;
+
+	_index32	 index_next;
 	_ctcp_packet packet;
 
 	_frames_queue input;
 	_frames_queue output;
 } _connection;
 #pragma pack(pop)
+
+#pragma warning(pop)
