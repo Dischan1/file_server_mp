@@ -9,8 +9,9 @@ These keys are install on the server-side. Them are need to be placed in the roo
 ## Building
 ### Windows
 ```
-cl.exe client.c -o client.exe
-cl.exe server.c -o server.exe
+cl.exe client.c     -o client.exe
+cl.exe server.c     -o server.exe
+cl.exe client_gui.c -o client_gui.exe
 ```
 ### Linux
 ```
@@ -27,26 +28,27 @@ starts the server
 
 ### Client
 ```
-client <client_id> <ip> <port> [r/t/l] <from> <to>
-client <client_id> <ip> <port> l <path>
+client <ip> <port> <passphrase> [r/t] <from> <to>
+client <ip> <port> <passphrase> l <path>
+client <ip> <port> <passphrase> m <message>
+client <ip> <port> <passphrase> g
 ```
 connects to the server  
-`client_id` - unique identifier registered on the server side  
 `ip`        - remote server ip for connection  
 `port`      - remote server port for connection  
+`passphrase`- your a secret phrase for connection  
 `r/t`       - file transfer direction (receive - receiving a file from a server/transmit - transmitting a file to a server)  
 `l`         - listing a directory from remote server  
+`m`         - message for a server  
+`g`         - register on a server  
 `from`      - source directory from a server on receive or source directory from a client on transmit  
 `to`        - destination directory for a client on receive or destination directory for a server on transmit  
 `path`      - a directory from remote server  
   
-`from` and `to` paths are relative by default  
-```
-client <client_id>
-```
-generates the keys  
-`client_id` - unique identifier to generate a keys
-## Key generation
-1. run the `client <client_id>` to generate private and public keys.  
-2. send .priv and .pub keys without renaming to the server.  
-3. connect to the server with your unique identifier.  
+`path`, `from` and `to` paths are relative by default
+## Client GUI
+it was developer to make it easier to use the windows program.  
+  
+![image](https://user-images.githubusercontent.com/57231832/205509064-ea615bba-bf47-462b-b544-2b437bb4e648.png)  
+  
+`ip port` and `passphrase` are mandatory. group of `path` and `receive` items are used for server directory listing, `message` and `send` are used for send a message to the server, `source`, `destination` and `receive`, `transmit` are used to download and upload files respectively.
