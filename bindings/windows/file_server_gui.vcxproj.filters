@@ -7,7 +7,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\gui\main.c">
+    <ClCompile Include="..\..\src\windows\gui\client_gui.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
