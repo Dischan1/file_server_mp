@@ -198,6 +198,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='server_debug|x64'">
     <TargetName>server</TargetName>
     <OutDir>$(SolutionDir)$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='client_debug|Win32'">
     <TargetName>client</TargetName>
@@ -205,20 +206,25 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='client_debug|x64'">
     <TargetName>client</TargetName>
     <OutDir>$(SolutionDir)$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='client_release|x64'">
     <TargetName>client</TargetName>
     <OutDir>$(SolutionDir)$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='server_release|x64'">
     <TargetName>server</TargetName>
     <OutDir>$(SolutionDir)$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
