@@ -333,7 +333,8 @@ void process_server_receive(_socket sk)
 			ctcp_write_frame_queue(&con->input, &con->packet);
 			con->index_next += 1u;
 
-			bool is_rpc_size = con->packet.header.payload_size_total == sizeof(_rpc);
+			bool is_payload_size_equal = con->packet.header.payload_size_total == con->packet.header.payload_size;
+			bool is_rpc_size = is_payload_size_equal && con->packet.header.payload_size == sizeof(_rpc);
 			_rpc* rpc		 = (_rpc*)con->packet.payload;
 
 			if (is_rpc_size && rpc->magic == 0x12345678u)
@@ -377,7 +378,9 @@ void process_server_transmit(_socket sk)
 
 			while (!con->packet.header.ACK || con->packet.header.index != cache->header.index)
 			{
-				result = sendto(con->socket, cache, sizeof(*cache),
+				uint32_t packet_size = sizeof(cache->header) + cache->header.payload_size;
+
+				result = sendto(con->socket, cache, packet_size,
 					0, &con->sockaddr_in, sizeof(con->sockaddr_in));
 
 				sleep(10);

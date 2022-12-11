@@ -208,7 +208,9 @@ void process_client_transmit(_connection* con)
 
         while (!con->packet.header.ACK || con->packet.header.index != cache->header.index)
         {
-            result = sendto(con->socket, cache, sizeof(*cache),
+            uint32_t packet_size = sizeof(cache->header) + cache->header.payload_size;
+
+            result = sendto(con->socket, cache, packet_size,
                 0, &con->sockaddr_in, sizeof(con->sockaddr_in));
 
             sleep(10);
@@ -280,6 +282,8 @@ int validate_arguments(int argc, char* argv[])
     return 0;
 }
 
+_connection gcon;
+
 int main(int argc, char* argv[])
 {
     /*
@@ -317,7 +321,7 @@ int main(int argc, char* argv[])
     sa.sin_port        = htons(strtoull(argv[2], 0, 10));
     sa.sin_addr.s_addr = inet_addr(argv[1]);
 
-    _connection* con = ctcp_allocate_connection();
+    _connection* con = ctcp_setup_connection(&gcon);
     con->socket      = sk;
     con->sockaddr_in = sa;
 
