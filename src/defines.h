@@ -44,16 +44,44 @@
 	{ pthread_t pThread; pthread_create(&pThread, NULL, (void*(*)(void*))(arg0), arg1); }
 #endif
 
+#define bool unsigned char
+
+#define false 0
+#define true  1
+
 typedef unsigned long long ulonglong;
 typedef unsigned short     ushort;
 
 typedef unsigned long long _socket;
 typedef void*              HANDLE;
 
-#define bool unsigned char
+typedef unsigned long long  uint64;
+typedef unsigned long	    uint32;
+typedef uint64              _time;
+typedef uint32				_guid;
+typedef uint32				_index32;
+typedef uint32				_count32;
+typedef uint64				_flags;
+typedef uint32				_checksum;
+typedef uint32				_size;
 
-#define false 0
-#define true  1
+#define ETHERNET_MTU_SIZE						(1500u-0x20u)
+#define CTCP_PAYLOAD_SIZE						(ETHERNET_MTU_SIZE - sizeof(_ctcp_header))
+#define CTCP_CONNECTIONS_MAX					5u
+#define CTCP_CONNECTION_FRAMES_MAX				256u
+#define CTCP_RECEIVE_PACKETS_COUNT_PER_FRAME	256u
+
+#if defined(_DEBUG)
+# define CTCP_CONNECTION_TIMEOUT_SECONDS_MAX	99999u
+#else
+# define CTCP_CONNECTION_TIMEOUT_SECONDS_MAX	60u
+#endif
+
+#if defined (_MSC_VER)
+# define static_assert_(...) static_assert(__VA_ARGS__)
+#else
+# define static_assert_(...)
+#endif
 
 typedef enum
 {
@@ -72,7 +100,7 @@ typedef enum
 #pragma pack(1)
 typedef struct
 {
-	size_t magic;
+	uint32	  magic;
 	_rpc_type type;
 } _rpc;
 #pragma pack(pop)
@@ -98,34 +126,6 @@ typedef struct
     _in_addr sin_addr;
     char     sin_zero[8];
 } _sockaddr_in;
-
-#define ETHERNET_MTU_SIZE						1500u
-#define CTCP_PAYLOAD_SIZE						(ETHERNET_MTU_SIZE - sizeof(_ctcp_header))
-#define CTCP_CONNECTIONS_MAX					5u
-#define CTCP_CONNECTION_FRAMES_MAX				256u
-#define CTCP_RECEIVE_PACKETS_COUNT_PER_FRAME	256u
-
-#if defined(_DEBUG)
-# define CTCP_CONNECTION_TIMEOUT_SECONDS_MAX	99999u
-#else
-# define CTCP_CONNECTION_TIMEOUT_SECONDS_MAX	60u
-#endif
-
-#if defined (_MSC_VER)
-# define static_assert_(...) static_assert(__VA_ARGS__)
-#else
-# define static_assert_(...)
-#endif
-
-typedef unsigned long long  uint64;
-typedef unsigned long	    uint32;
-typedef uint64              _time;
-typedef uint32				_guid;
-typedef uint32				_index32;
-typedef uint32				_count32;
-typedef uint64				_flags;
-typedef uint32				_checksum;
-typedef uint32				_size;
 
 typedef struct
 {
