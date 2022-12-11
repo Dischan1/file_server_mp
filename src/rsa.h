@@ -66,7 +66,7 @@ int rsa_mod_inverse(int u, int v)
 }
 
 // Check if the input number is a prime number or not
-bool rsa_check_prime(num) {
+bool rsa_check_prime(int num) {
 
 	if (num == 0 || num == 1) {
 		return false;
@@ -136,83 +136,9 @@ void rsa_get_private(_rsa_data* rsa_data, _rsa_private* key)
 	key->d = rsa_data->d;
 }
 
-bool rsa_save_public_key(_rsa_data* rsa_data, const char* path)
-{
-	int data[] = { rsa_data->n, rsa_data->e };
-	return save_file((char*)data, sizeof(data), path);
-}
-
-bool rsa_save_private_key(_rsa_data* rsa_data, const char* path)
-{
-	int data[] = { rsa_data->n, rsa_data->d };
-	return save_file((char*)data, sizeof(data), path);
-}
-
-bool rsa_save_keys(_rsa_data* rsa_data, const char* name)
-{
-	char buffer[128];
-	bool status = true;
-
-	sprintf(buffer, "%s.pub", name);
-	status &= status && rsa_save_public_key(rsa_data, buffer);
-
-	sprintf(buffer, "%s.priv", name);
-	status &= status && rsa_save_private_key(rsa_data, buffer);
-
-	return status;
-}
-
-bool rsa_save_client_keys(_rsa_data* rsa_data, int client_id)
-{
-	char buffer[64];
-	sprintf(buffer, "%d", client_id);
-	return rsa_save_keys(rsa_data, buffer);
-}
-
-bool rsa_load_public_key(_rsa_data* rsa_data, const char* path)
-{
-	int data[] = { rsa_data->n, rsa_data->e };
-	bool status = load_file_static((char*)data, sizeof(data), path);
-	if (!status) return false;
-	rsa_data->n = data[0];
-	rsa_data->e = data[1];
-	return true;
-}
-
-bool rsa_load_private_key(_rsa_data* rsa_data, const char* path)
-{
-	int data[] = { rsa_data->n, rsa_data->d };
-	bool status = load_file_static((char*)data, sizeof(data), path);
-	if (!status) return false;
-	rsa_data->n = data[0];
-	rsa_data->d = data[1];
-	return true;
-}
-
-bool rsa_load_keys(_rsa_data* rsa_data, const char* name)
-{
-	char buffer[128];
-	bool status = true;
-
-	sprintf(buffer, "%s.pub", name);
-	status &= rsa_load_public_key(rsa_data, buffer);
-
-	sprintf(buffer, "%s.priv", name);
-	status &= rsa_load_private_key(rsa_data, buffer);
-
-	return status;
-}
-
-bool rsa_load_client_keys(_rsa_data* rsa_data, int client_id)
-{
-	char buffer[64];
-	sprintf(buffer, "%d", client_id);
-	return rsa_load_keys(rsa_data, buffer);
-}
-
 int* rsa_encrypt(_rsa_public* key, char* buffer, int size)
 {
-	int* enc = malloc(size * sizeof(int));
+	int* enc = (int*)malloc(size * sizeof(int));
 
 	for (int i = 0; i < size; ++i)
 		enc[i] = rsa_MEA(buffer[i], key->e, key->n);
@@ -222,35 +148,10 @@ int* rsa_encrypt(_rsa_public* key, char* buffer, int size)
 
 char* rsa_decrypt(_rsa_private* key, int* buffer, int size)
 {
-	char* dec = malloc(size * sizeof(char));
+	char* dec = (char*)malloc(size * sizeof(char));
 
 	for (int i = 0; i < size; ++i)
 		dec[i] = rsa_MEA(buffer[i], key->d, key->n);
 
 	return dec;
 }
-
-/*
-int test()
-{
-	srand(time(NULL));
-
-	_rsa_data rsa_data;
-	rsa_generate_keys(&rsa_data);
-	rsa_save_client_keys(&rsa_data, 11);
-	rsa_load_client_keys(&rsa_data, 11);
-
-	char buffer[] = { "hello data ;D" };
-	printf("src: %s\n", buffer);
-
-	int* enc  = rsa_encrypt(&rsa_data, buffer, sizeof(buffer) - 1);
-	char* dec = rsa_decrypt(&rsa_data, enc, sizeof(buffer) - 1);
-	
-	printf("dst: %s\n", dec);
-
-	free(enc);
-	free(dec);
-
-	return 0;
-}
-*/
