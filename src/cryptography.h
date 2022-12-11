@@ -13,5 +13,5 @@ char* decrypt_data(_connection* con, char* data, size_t size)
 
 char* encrypt_data(_connection* con, char* data, size_t size)
 {
-    return rsa_encrypt(&con->key.pub, data, (int)size);
+    return (char*)rsa_encrypt(&con->key.pub, data, (int)size);
 }
