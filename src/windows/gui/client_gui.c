@@ -168,8 +168,7 @@ void on_register_click(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	char* ip_port	 = get_window_text(ID_CONTROL(2));
 	char* passphrase = get_window_text(ID_CONTROL(4));
 
-	char buffer[1024];
-	buffer[0] = '\0';
+	char buffer[1024] = { 0 };
 
 	strcat_s(buffer, sizeof(buffer), "client.exe ");
 	strcat_s(buffer, sizeof(buffer), ip_port);
@@ -189,8 +188,7 @@ void on_receive_transmit_click(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam
 	char* ip_port	 = get_window_text(ID_CONTROL(2));
 	char* passphrase = get_window_text(ID_CONTROL(4));
 
-	char buffer[1024];
-	buffer[0] = '\0';
+	char buffer[1024] = { 0 };
 
 	strcat_s(buffer, sizeof(buffer), "client.exe ");
 	strcat_s(buffer, sizeof(buffer), ip_port);
@@ -223,8 +221,7 @@ void on_send_click(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	char* passphrase = get_window_text(ID_CONTROL(4));
 	char* message	 = get_window_text(ID_CONTROL(13));
 
-	char buffer[1024];
-	buffer[0] = '\0';
+	char buffer[1024] = { 0 };
 
 	strcat_s(buffer, sizeof(buffer), "client.exe ");
 	strcat_s(buffer, sizeof(buffer), ip_port);
@@ -248,8 +245,7 @@ void on_receive_click(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	char* passphrase = get_window_text(ID_CONTROL(4));
 	char* path		 = get_window_text(ID_CONTROL(16));
 
-	char buffer[8192];
-	buffer[0] = '\0';
+	char buffer[8192] = { 0 };
 
 	strcat_s(buffer, sizeof(buffer), "client.exe ");
 	strcat_s(buffer, sizeof(buffer), ip_port);
@@ -263,7 +259,7 @@ void on_receive_click(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 	if (file)
 	{
-		char temp[128];
+		char temp[1024];
 		buffer[0] = '\0';
 
 		while (!feof(file))
